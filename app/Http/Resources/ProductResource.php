@@ -7,24 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProductResource extends JsonResource
 {
-    public $status;
-    public $message;
-    public $resource;
-
-    /**
-     * 
-     * @param mixed $status
-     * @param mixed $message
-     * @param mixed $resource
-     * @return void
-     * 
-     */
-    public function __construct($status, $message, $resource)
-    {
-        parent::__construct($resource);
-        $this->status = $status;
-        $this->message = $message;
-    }
+    
 
     /**
      * Transform the resource into an array.
@@ -34,9 +17,24 @@ class ProductResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'success' => $this->status,
-            'message' => $this->message,
-            'data' => $this->resource
+            
+                'id' => $this->id,
+                'title' => $this->title,
+                'description' => $this->description,
+                'price' => $this->price,
+                'stock' => $this->stock,
+                'image' => $this->image,
+                'category' => [
+                    'id' => $this->category_id,
+                    'name' => $this->category?->name, // Use optional operator in case category is null
+                ],
+                'tags' => $this->tags->map(function ($tag) {
+                    return [
+                        'id' => $tag->id,
+                        'name' => $tag->name
+                    ];
+                }),
+            
         ];
     }
 }

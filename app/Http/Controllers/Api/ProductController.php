@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\ProductCollection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -19,9 +20,19 @@ class ProductController extends Controller
     public function index()
     {
         // Get all products
-        $products = Product::latest()->paginate(5);
+        $products = Product::with(['category', 'tags'])->latest()->paginate(5);
 
-        return new ProductResource(true, 'List Data Products', $products);
+        return response()->json([
+            'success' => true,
+            'message' => 'List Data Products',
+            'data' => ProductResource::collection($products),
+            'meta' => [
+                'current_page' => $products->currentPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+                'last_page' => $products->lastPage(),
+            ]
+        ]);
     }
 
 
@@ -38,6 +49,9 @@ class ProductController extends Controller
             // Define validation rules
             $validator = Validator::make($request->all(), [
                 'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'category_id' => 'required',
+                'tags' => 'required|array',
+                'tags.*' => 'exists:tags,id',
                 'title' => 'required',
                 'description' => 'required',
                 'price' => 'required|numeric',
@@ -45,7 +59,7 @@ class ProductController extends Controller
             ]);
             // Check if validation fails
             if ($validator->fails()) {
-                return response->json($validator->errors(), 422);
+                return response()->json($validator->errors(), 422);
             }
             
             // Upload image
@@ -55,16 +69,24 @@ class ProductController extends Controller
             // Create Product
             $product = Product::create([
                 'image' => $image->hashName(),
+                'category_id' => $request->category_id,
                 'title' => $request->title,
                 'description' => $request->description,
                 'price' => $request->price,
                 'stock' => $request->stock
             ]);
 
+            // Attach tags to the product
+            $product->tags()->attach($request->tags);
+
             // Return response
-            return new ProductResource(true, 'Data Product Berhasil Ditambahkan', $product);
+            return response()->json([
+                'success' => true,
+                'message' => 'Product berhasil ditambahkan',
+                'data' => new ProductResource($product),
+            ]);
         } catch (Exception $e) {
-            return response->json($e->getMessage(), 500);
+            return response()->json($e->getMessage(), 500);
         }
     }
 
